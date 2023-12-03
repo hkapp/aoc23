@@ -6,11 +6,13 @@ td←⊃⎕NGET 'data/day3.test.txt' 1
 rd←⊃⎕NGET 'data/day3.data.txt' 1
 
 digits←∊⍕¨⍳10
+proxmat ← {(1@(↓⍵))0⍴⍨⍴↑⍺}
+flatmask ← {∨/¨(∊⍺ proxmat ⍵)⊆⍨∊(↑⍺)∊digits}
+
 symbols←{~(↑⍵)∊'.',digits}
 sq←∘.,⍨ ¯1 0 1
 sqsyms←{d+(↑sq)⍴⍨⍴d←9⌿↑⍸symbols ⍵}
-enabled←{(1@(↓sqsyms ⍵))0⍴⍨⍴↑⍵}
-kept ← {∨/¨(∊enabled ⍵)⊆⍨∊(↑⍵)∊digits}
+kept ← {⍵ flatmask (sqsyms ⍵)}
 allnums←{⍎¨(∊↑⍵)⊆⍨∊(↑⍵)∊digits}
 
 d3p1 ← {+/(kept ⍵)/allnums ⍵}
@@ -19,8 +21,7 @@ d3p1 rd
 
 gears←{(↑⍵)∊'*'}
 gsq←{(9 2⍴⍵)+9 2⍴↑sq}
-gena ← {(1@(↓gsq ⍵))0⍴⍨⍴↑⍺}
-gneighs←{∨/¨(∊⍺ gena ⍵)⊆⍨∊(↑⍺)∊digits}
+gneighs←{⍺ flatmask (gsq ⍵)}
 gkept ← {m×(⍴m)⍴2=+/m←⍺ gneighs ⍵}
 gvals ← {(⍺ gkept ⍵)/allnums ⍺}
 
