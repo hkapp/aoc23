@@ -1,7 +1,8 @@
-import Control.Exception (assert)
-import Data.List (groupBy, find, foldl', sortOn)
+import Data.List (find, foldl', sortOn)
 import Data.Maybe (fromMaybe, isJust, maybeToList)
 import Control.Monad (join)
+import Utils ((<!>), splitByChar, splitBy)
+import Control.Exception (assert)
 
 main =
   do
@@ -12,8 +13,6 @@ main =
     print $ part2 seeds mappings
 
 -- test
-
-x <!> y = assert (x == y) (return ())
 
 test =
   do
@@ -73,9 +72,6 @@ removePrefix prefix text =
   in
     assert (take n text == prefix) (drop n text)
 
-splitByChar :: Char -> String -> [String]
-splitByChar = splitBy
-
 -- parseRange
 
 data RangeMapping = RangeMapping {
@@ -97,9 +93,6 @@ parseMapping :: [String] -> Mapping
 parseMapping = map parseRange
 
 -- parse
-
-splitBy :: (Eq a) => a -> [a] -> [[a]]
-splitBy c = map (filter ((/=) c)) . groupBy (\a b -> b /= c)
 
 parse :: [String] -> (Seeds, [Mapping])
 parse lines =
