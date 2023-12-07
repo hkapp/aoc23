@@ -3,7 +3,8 @@ module Utils where
 import Control.Exception (assert)
 import Data.List (groupBy)
 
-x <!> y = assert (x == y) (return ())
+x <!> y | x == y = return ()
+x <!> y = error $ (show x) ++ " != " ++ (show y)
 
 splitByChar :: Char -> String -> [String]
 splitByChar = splitBy
