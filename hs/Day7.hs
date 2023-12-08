@@ -1,6 +1,6 @@
 import Data.List (find, sort, group, sortOn)
 import Data.Maybe (fromMaybe)
-import Utils ((<!>), splitByChar)
+import Utils ((<!>), splitByChar, zipWithIndexStarting)
 import Data.Bifunctor (first)
 
 main =
@@ -139,9 +139,6 @@ parse =
     map parseLine
 
 -- part1
-
-zipWithIndexStarting :: Int -> [a] -> [(Int, a)]
-zipWithIndexStarting start = zip [start..]
 
 part1 = sum . map (uncurry (*)) . zipWithIndexStarting 1 . map snd . sortOn fst
 

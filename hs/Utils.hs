@@ -11,3 +11,6 @@ splitByChar = splitBy
 
 splitBy :: (Eq a) => a -> [a] -> [[a]]
 splitBy c = filter (not . null) . map (filter ((/=) c)) . groupBy (\a b -> b /= c)
+
+zipWithIndexStarting :: Int -> [a] -> [(Int, a)]
+zipWithIndexStarting start = zip [start..]
