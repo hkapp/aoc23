@@ -1,4 +1,4 @@
-import Utils (splitByChar, (<!>))
+import Utils (splitByChar, (<!>), overlappingPairs)
 import Data.List (foldl')
 
 main =
@@ -44,12 +44,6 @@ test =
 
 parse :: [String] -> [[Int]]
 parse = map (map read . splitByChar ' ')
-
--- overlappingPairs
-
-overlappingPairs :: [a] -> [(a, a)]
-overlappingPairs (x:y:zs) = (x, y):(overlappingPairs $ y:zs)
-overlappingPairs _ = []
 
 -- successiveDifferences
 

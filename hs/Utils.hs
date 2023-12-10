@@ -14,3 +14,7 @@ splitBy c = filter (not . null) . map (filter ((/=) c)) . groupBy (\a b -> b /= 
 
 zipWithIndexStarting :: Int -> [a] -> [(Int, a)]
 zipWithIndexStarting start = zip [start..]
+
+overlappingPairs :: [a] -> [(a, a)]
+overlappingPairs (x:y:zs) = (x, y):(overlappingPairs $ y:zs)
+overlappingPairs _ = []
