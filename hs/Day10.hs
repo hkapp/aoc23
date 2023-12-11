@@ -13,6 +13,8 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import System.IO.Unsafe (unsafePerformIO)
 import Data.Bifunctor (second)
+import qualified Grid2D
+import Grid2D (Pos, Direction(..), left, right, up, down, allDirections, towards, within)
 
 main =
   do
@@ -24,7 +26,7 @@ main =
 
     print $ part1 g s
 
-    print $ part2 g s -- < 501
+    print $ part2 g s
 
 -- test
 
@@ -85,39 +87,12 @@ test =
   v
 -}
 type Grid = Array Pos Tile
-type Pos = (Int, Int)
 type Tile = Char
 
 parse :: [String] -> Grid
-parse lines =
-  let
-    numberedList =
-      do
-        (i, xs) <- zipWithIndexStarting 0 lines
-        (j, c) <- zipWithIndexStarting 0 xs
-        return ((i, j), c)
-    width = length $ head lines
-    height = length lines
-  in
-    Array.array ((0, 0), (height-1, width-1)) numberedList
+parse = Grid2D.parse
 
 -- Directions
-
-data Direction = Left | Right | Up | Down
-  deriving (Eq, Show)
-
-left  (x, y) = (x,   y-1)
-right (x, y) = (x,   y+1)
-up    (x, y) = (x-1, y)
-down  (x, y) = (x+1, y)
-
-towards :: Direction -> Pos -> Pos
-towards Left  = left
-towards Right = right
-towards Up    = up
-towards Down  = down
-
-allDirections = [Left, Right, Up, Down]
 
 neighbours :: Grid -> Pos -> [(Direction, Pos)]
 neighbours g pos =
@@ -125,9 +100,6 @@ neighbours g pos =
     allNeighbours = allDirections <&> (\d -> (d, towards d pos))
   in
     filter (within g . snd) allNeighbours
-
-within :: Grid -> Pos -> Bool
-within g = Array.inRange (Array.bounds g)
 
 -- startPos
 
@@ -301,13 +273,7 @@ outside g a =
     any touchBorder a
 
 showGrid :: Grid -> String
-showGrid g =
-  do
-    ((x, y), c) <- Array.assocs g
-    if y == 0
-      then '\n':c:[]
-      else return c
-
+showGrid = Grid2D.showCharGrid
 
 -- annotate
 

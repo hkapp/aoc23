@@ -1,6 +1,6 @@
 import Data.Map (Map, (!))
 import qualified Data.Map as Map
-import Utils ((<!>), zipWithIndexStarting)
+import Utils ((<!>), zipWithIndexStarting, takeUntil)
 import Control.Monad (join)
 import Data.List (transpose, find)
 import qualified Data.Set as Set
@@ -207,8 +207,5 @@ allAtDest :: [Pos] -> Bool
 allAtDest = and . map isGhostDest
 
 -- part2
-
-takeUntil :: (a -> Bool) -> [a] -> [a]
-takeUntil f = takeWhile (not . f)
 
 part2 ds desert = length $ takeUntil allAtDest $ ghostWander ds desert

@@ -1,4 +1,4 @@
-import Utils (splitByChar, (<!>), overlappingPairs)
+import Utils (splitByChar, (<!>), overlappingPairs, takeUntilIncl)
 import Data.List (foldl')
 
 main =
@@ -58,10 +58,6 @@ substractionSequences =
     allZeroes = all ((==) 0)
   in
     takeUntilIncl allZeroes . iterate successiveDifferences
-
-takeUntilIncl :: (a -> Bool) -> [a] -> [a]
-takeUntilIncl p (x:xs) | p x = [x]
-takeUntilIncl p (x:xs) = x:(takeUntilIncl p xs)
 
 -- extrapolate
 
