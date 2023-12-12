@@ -2,6 +2,7 @@ module Utils where
 
 import Control.Exception (assert)
 import Data.List (groupBy)
+import System.IO.Unsafe (unsafePerformIO)
 
 x <!> y | x == y = return ()
 x <!> y = error $ (show x) ++ " != " ++ (show y)
@@ -39,3 +40,6 @@ cartesianProduct xs ys =
     x <- xs
     y <- ys
     return (x, y)
+
+debug :: (Show a) => a -> a
+debug x = unsafePerformIO (print x >> return x)

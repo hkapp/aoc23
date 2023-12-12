@@ -11,7 +11,6 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
-import System.IO.Unsafe (unsafePerformIO)
 import Data.Bifunctor (second)
 import qualified Grid2D
 import Grid2D (Pos, Direction(..), left, right, up, down, allDirections, towards, within)
@@ -238,9 +237,6 @@ areaAround g mainLoop pos =
 
 notIn :: (Ord a) => Set a -> a -> Bool
 notIn = flip Set.notMember
-
-debug :: (Show a) => a -> a
-debug x = unsafePerformIO (print x >> return x)
 
 -- areas
 

@@ -1,6 +1,10 @@
-import Utils (splitByChar, (<!>))
-import Data.List (group)
+import Utils (splitByChar, (<!>), debug)
+import Data.List (group, transpose)
 import Control.Monad (join)
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Control.Monad.State (State, get, put, evalState)
+import Control.Exception (assert)
 
 main =
   do
@@ -11,7 +15,18 @@ main =
 
     print $ part1 inputPairs
 
-    print $ part2 $ take 1 inputPairs
+    let (springs1, report1) = head $ drop 1 inputPairs
+    let instances = filter (\m -> report1 == report m) $ driveReplacement (springs1 ++ "?" ++ springs1) (report1 ++ report1)
+    -- let instances = filter (\m -> report1 == report m) $ driveReplacement springs1 report1
+    print $ instances
+    print $ transpose instances
+    let repeatedElement xs = foldr (\a b -> case b of { Just x | x == a -> Just x ; _ -> Nothing }) (Just $ head xs) xs
+    print $ map repeatedElement $ transpose instances
+    -- print $ filter ((==) expectedReport) $ map report $ driveReplacement springs expectedReport
+
+    -- take 1: 1316327
+    -- take 2: 1195096364
+    -- print $ part2 $ take 2 inputPairs
 
 -- test
 
@@ -67,7 +82,8 @@ report = map length . filter (\xs -> (head xs) == '#') . group
 -- countArrangements
 
 countArrangements :: [Spring] -> Report -> Int
-countArrangements springs expectedReport = length $ filter ((==) expectedReport) $ map report $ driveReplacement springs expectedReport
+-- countArrangements springs expectedReport = length $ filter ((==) expectedReport) $ map report $ driveReplacement springs expectedReport
+countArrangements = dpCount
 -- countArrangements springs expectedReport = length $ filter ((==) expectedReport) $ map report $ possibleSprings springs
 
 -- part1
@@ -165,3 +181,91 @@ expandReport = join . take 5 . repeat
 -- part2
 
 part2 = part1 . map (\(s, r) -> (expandSprings s, expandReport r))
+
+
+-- Third attempt
+
+type DP = Map DPS Int
+type DPS = ([Spring], [Int])
+
+lookupOrCompute :: [Spring] -> [Int] -> State DP Int
+lookupOrCompute springs remReport =
+    do
+        alreadyComputed <- get
+        let key = (springs, remReport)
+        case Map.lookup key alreadyComputed of
+            Just x -> return x
+            Nothing ->
+                do
+                    x <- statefulCompute springs remReport
+                    put $ Map.insert key x alreadyComputed
+                    return x
+
+statefulCompute :: [Spring] -> [Int] -> State DP Int
+
+statefulCompute springs (expectedGroupSize:remReport) =
+    let
+        initialSlicing = burgers expectedGroupSize springs
+        constituentStates = map value $ filter isValid initialSlicing
+        -- Note: we use 'take 1' rather than 'head' as 'remSprings' could be empty
+        isValid (shouldBeWorking, shouldBeDamaged, remSprings) = (all canBeWorking shouldBeWorking) &&
+                                                                (all canBeDamaged shouldBeDamaged) &&
+                                                                (all canBeWorking $ take 1 remSprings)
+        -- Note: we don't need to care about the number of '?' in shouldBeDamaged, as they must all be set to '#' for this entire thing to work
+        -- hence there is no longer a choice for '?'s here
+        -- same reasoning goes for the first element of remSprings
+        -- Note: we enforce that
+        value (ignoredPrefix, shouldBeDamaged, remSprings) = lookupOrCompute (drop 1 remSprings) remReport
+    in
+        fmap sum $ sequence constituentStates
+
+-- We don't have any groups to build anymore
+-- Do we still have entries that would necessarily form a group?
+-- If so, the entire decomposition is invalid
+statefulCompute springs [] =
+    if any alwaysDamaged springs
+        then return 0
+        else return 1
+
+-- We don't have any springs, but still some groups to build
+-- This can't be achieved, hence this decomposition is invalid
+-- Note: this is redundant of the first case
+-- statefulCompute [] (r:rs) = return 0
+
+-- burgers
+-- burgers are sandwiches with bread, meat, then bread
+-- the meat is guaranteed to be of a given size, but there might not be bread on either side
+
+burgers :: Int -> [a] -> [([a], [a], [a])]
+burgers meatSize xs | (length xs) < meatSize = []
+burgers meatSize xs =
+    let
+        validIndices = [0..((length xs) - meatSize)]
+
+        splitTwice n =
+            let
+                (a, tmp) = splitAt n xs
+                (b, c) = splitAt meatSize tmp
+            in
+                assert (length b == meatSize) (a, b, c)
+    in
+        map splitTwice validIndices
+
+-- damaged info
+
+canBeDamaged :: Spring -> Bool
+canBeDamaged s = alwaysDamaged s || undecided s
+
+canBeWorking :: Spring -> Bool
+canBeWorking = not . alwaysDamaged
+
+alwaysDamaged :: Spring -> Bool
+alwaysDamaged = (==) '#'
+
+undecided :: Spring -> Bool
+undecided = (==) '?'
+
+-- dpCount
+
+dpCount :: [Spring] -> Report -> Int
+dpCount springs expectedReport = (flip evalState) Map.empty $ statefulCompute springs expectedReport
