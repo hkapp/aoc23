@@ -18,15 +18,15 @@ main =
     let (springs1, report1) = head $ drop 1 inputPairs
     let instances = filter (\m -> report1 == report m) $ driveReplacement (springs1 ++ "?" ++ springs1) (report1 ++ report1)
     -- let instances = filter (\m -> report1 == report m) $ driveReplacement springs1 report1
-    print $ instances
-    print $ transpose instances
-    let repeatedElement xs = foldr (\a b -> case b of { Just x | x == a -> Just x ; _ -> Nothing }) (Just $ head xs) xs
-    print $ map repeatedElement $ transpose instances
+    -- print $ instances
+    -- print $ transpose instances
+    -- let repeatedElement xs = foldr (\a b -> case b of { Just x | x == a -> Just x ; _ -> Nothing }) (Just $ head xs) xs
+    -- print $ map repeatedElement $ transpose instances
     -- print $ filter ((==) expectedReport) $ map report $ driveReplacement springs expectedReport
 
-    -- take 1: 1316327
+    -- take 1: 1316327 (2s)
     -- take 2: 1195096364
-    -- print $ part2 $ take 2 inputPairs
+    print $ part2 $ take 2 inputPairs
 
 -- test
 
@@ -186,13 +186,13 @@ part2 = part1 . map (\(s, r) -> (expandSprings s, expandReport r))
 -- Third attempt
 
 type DP = Map DPS Int
-type DPS = ([Spring], [Int])
+type DPS = (Int, Int)
 
 lookupOrCompute :: [Spring] -> [Int] -> State DP Int
 lookupOrCompute springs remReport =
     do
         alreadyComputed <- get
-        let key = (springs, remReport)
+        let key = (length springs, length remReport)
         case Map.lookup key alreadyComputed of
             Just x -> return x
             Nothing ->
@@ -206,11 +206,16 @@ statefulCompute :: [Spring] -> [Int] -> State DP Int
 statefulCompute springs (expectedGroupSize:remReport) =
     let
         initialSlicing = burgers expectedGroupSize springs
-        constituentStates = map value $ filter isValid initialSlicing
+        constituentStates = map value $ filter mainValid $ takeWhile longEnough $ takeWhile validPrefix initialSlicing
         -- Note: we use 'take 1' rather than 'head' as 'remSprings' could be empty
-        isValid (shouldBeWorking, shouldBeDamaged, remSprings) = (all canBeWorking shouldBeWorking) &&
-                                                                (all canBeDamaged shouldBeDamaged) &&
-                                                                (all canBeWorking $ take 1 remSprings)
+        -- isValid (shouldBeWorking, shouldBeDamaged, remSprings) = (all canBeWorking shouldBeWorking) &&
+                                                                -- (all canBeDamaged shouldBeDamaged) &&
+                                                                -- (all canBeWorking $ take 1 remSprings)
+        mainValid (shouldBeWorking, shouldBeDamaged, remSprings) = (all canBeDamaged shouldBeDamaged) &&
+                                                                   (all canBeWorking $ take 1 remSprings)
+        -- Note: we don't substract one because the suffix should contain a working delimitor
+        longEnough (shouldBeWorking, shouldBeDamaged, remSprings) = (length remSprings) >= (sum $ map ((+) 1) remReport)
+        validPrefix (shouldBeWorking, shouldBeDamaged, remSprings) = (all canBeWorking shouldBeWorking)
         -- Note: we don't need to care about the number of '?' in shouldBeDamaged, as they must all be set to '#' for this entire thing to work
         -- hence there is no longer a choice for '?'s here
         -- same reasoning goes for the first element of remSprings
