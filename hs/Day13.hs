@@ -43,23 +43,39 @@ parse lines = map Grid2D.parse $ splitBy [] lines
 
 -- findMirror
 
-findMirror :: Int -> [[Tile]] -> Maybe ([[Tile]], [[Tile]])
-findMirror ndiff =
+findMirror :: [[Tile]] -> Maybe ([[Tile]], [[Tile]])
+findMirror =
     let
-        diffCount ([], r) = Nothing
-        diffCount (l, []) = Nothing
-        -- TODO need to flatten the reflection before counting the differences
-        diffCount (l, r)  = Just $ length $ filter (uncurry (/=)) $ join $ map  $ reflection (l, r)
-        -- diffCount (l, r)  = Just $ length $ filter (uncurry (/=)) $ reflection (l, r)
+        mirror ([], r) = False
+        mirror (l, []) = False
+        mirror (l, r)  = all (uncurry (==)) $ zip (reverse l) r
+        -- mirror (l, r)  = all (uncurry (/=)) $ reflection (l, r)
     in
-        find (\p -> (diffCount p) == (Just ndiff)) . splits
-        -- fmap fst . find (mirror . snd) . zipWithIndexStarting 1 . splits
+        find mirror . splits
 
-findRowMirror :: Int -> Grid -> Maybe ([[Tile]], [[Tile]])
-findRowMirror n = findMirror n . Grid2D.intoRows
+findRowMirror :: Grid -> Maybe ([[Tile]], [[Tile]])
+findRowMirror = findMirror . Grid2D.intoRows
 
-findColMirror :: Int -> Grid -> Maybe ([[Tile]], [[Tile]])
-findColMirror n = findMirror n . Grid2D.intoColumns
+findColMirror :: Grid -> Maybe ([[Tile]], [[Tile]])
+findColMirror = findMirror . Grid2D.intoColumns
+
+-- findMirror :: Int -> [[Tile]] -> Maybe ([[Tile]], [[Tile]])
+-- findMirror ndiff =
+    -- let
+        -- diffCount ([], r) = Nothing
+        -- diffCount (l, []) = Nothing
+        -- -- TODO need to flatten the reflection before counting the differences
+        -- diffCount (l, r)  = Just $ length $ filter (uncurry (/=)) $ join $ map  $ reflection (l, r)
+        -- -- diffCount (l, r)  = Just $ length $ filter (uncurry (/=)) $ reflection (l, r)
+    -- in
+        -- find (\p -> (diffCount p) == (Just ndiff)) . splits
+        -- -- fmap fst . find (mirror . snd) . zipWithIndexStarting 1 . splits
+
+-- findRowMirror :: Int -> Grid -> Maybe ([[Tile]], [[Tile]])
+-- findRowMirror n = findMirror n . Grid2D.intoRows
+
+-- findColMirror :: Int -> Grid -> Maybe ([[Tile]], [[Tile]])
+-- findColMirror n = findMirror n . Grid2D.intoColumns
 
 splits :: [a] -> [([a], [a])]
 splits xs = map ((flip splitAt) xs) [0..(length xs)]
@@ -71,21 +87,21 @@ countBeforeMirror = fromMaybe 0 . fmap (length . fst)
 
 part1 gs =
     let
-        f n mir = sum $ map ((*) n) $ map (countBeforeMirror . mir 0) gs
+        f n mir = sum $ map ((*) n) $ map (countBeforeMirror . mir) gs
     in
         (f 1 findColMirror) + (f 100 findRowMirror)
 
 -- part2
 
-part2 = part1 . map fixSmudge
+-- part2 = part1 . map fixSmudge
 
 -- fixSmudge
 
-reflection :: ([[Tile]], [[Tile]]) -> [([Tile], [Tile])]
-reflection (l, r) = zip (reverse l) r
+-- reflection :: ([[Tile]], [[Tile]]) -> [([Tile], [Tile])]
+-- reflection (l, r) = zip (reverse l) r
 
-fixSmudge :: Grid -> Grid
-fixSmudge g =
-    let
-        smudged = oneJust (findRowMirror 1 g) (findColMirror 1 g)
+-- fixSmudge :: Grid -> Grid
+-- fixSmudge g =
+    -- let
+        -- smudged = oneJust (findRowMirror 1 g) (findColMirror 1 g)
 
