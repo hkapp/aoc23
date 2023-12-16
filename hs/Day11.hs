@@ -1,11 +1,9 @@
 import qualified Grid2D
 import Grid2D (Grid, width, height, Pos, neighboursWithin, up, left, xCoord, yCoord)
-import Utils ((<!>), takeUntilIncl, takeUntil, pairsWithoutReplacement, zipWithIndexStarting)
+import Utils ((<!>), takeUntilIncl, takeUntil, pairsWithoutReplacement, zipWithIndexStarting, both)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Array as Array
-import qualified Data.Bifunctor as Bifunctor
-import Data.Bifunctor (Bifunctor)
 
 main =
   do
@@ -133,13 +131,10 @@ valuesBetween :: (Int, Int) -> [Int]
 valuesBetween (a, b) = [(min a b)..(max a b)]
 
 crossedRows :: (Pos, Pos) -> [Int]
-crossedRows = valuesBetween . mapBoth xCoord
+crossedRows = valuesBetween . both xCoord
 
 crossedCols :: (Pos, Pos) -> [Int]
-crossedCols = valuesBetween . mapBoth yCoord
-
-mapBoth :: Bifunctor f => (a -> b) -> f a a -> f b b
-mapBoth f = Bifunctor.first f . Bifunctor.second f
+crossedCols = valuesBetween . both yCoord
 
 emptyAxis :: (Space -> [[Pixel]]) -> Space -> EmptyAxis
 emptyAxis toAxis = Set.fromList . map fst . filter (emptySpace . snd) . zipWithIndexStarting 0 . toAxis

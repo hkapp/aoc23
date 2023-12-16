@@ -3,6 +3,8 @@ module Utils where
 import Control.Exception (assert)
 import Data.List (groupBy)
 import System.IO.Unsafe (unsafePerformIO)
+import qualified Data.Bifunctor as Bifunctor
+import Data.Bifunctor (Bifunctor)
 
 x <!> y | x == y = return ()
 x <!> y = error $ (show x) ++ " != " ++ (show y)
@@ -43,3 +45,6 @@ cartesianProduct xs ys =
 
 debug :: (Show a) => a -> a
 debug x = unsafePerformIO (print x >> return x)
+
+both :: Bifunctor f => (a -> b) -> f a a -> f b b
+both f = Bifunctor.first f . Bifunctor.second f

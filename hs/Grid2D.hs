@@ -53,8 +53,14 @@ fromColumns = fromAxis (flip (,))
 
 -- Grid -> List
 
+intoAssocRows :: Grid a -> [[(Pos, a)]]
+intoAssocRows = groupBy (\((x1, _), _) ((x2, _), _) -> x1 == x2) . Array.assocs
+
+intoAssocColumns :: Grid a -> [[(Pos, a)]]
+intoAssocColumns = transpose . intoAssocRows
+
 intoRows :: Grid a -> [[a]]
-intoRows = map (map snd) . groupBy (\((x1, _), _) ((x2, _), _) -> x1 == x2) . Array.assocs
+intoRows = map (map snd) . intoAssocRows
 
 intoColumns :: Grid a -> [[a]]
 intoColumns = transpose . intoRows

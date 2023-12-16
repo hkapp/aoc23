@@ -25,8 +25,8 @@ main =
     -- print $ filter ((==) expectedReport) $ map report $ driveReplacement springs expectedReport
 
     -- take 1: 1316327 (2s)
-    -- take 2: 1195096364
-    print $ part2 $ take 2 inputPairs
+    -- take 2: 1195096364 (7m 30s)
+    print $ part2 $ take 64 inputPairs
 
 -- test
 
