@@ -5,6 +5,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Control.Monad.State (State, get, put, evalState)
 import Control.Exception (assert)
+import Control.Parallel.Strategies (parMap, rdeepseq)
 
 main =
   do
@@ -26,7 +27,7 @@ main =
 
     -- take 1: 1316327 (2s)
     -- take 2: 1195096364 (7m 30s)
-    print $ part2 $ take 64 inputPairs
+    print $ part2 inputPairs
 
 -- test
 
@@ -88,7 +89,8 @@ countArrangements = dpCount
 
 -- part1
 
-part1 = sum . map (uncurry countArrangements)
+-- part1 = sum . map (uncurry countArrangements)
+part1 = sum . parMap rdeepseq (uncurry countArrangements)
 
 -- validPrefix
 
