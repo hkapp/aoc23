@@ -4,6 +4,7 @@ import Control.Monad (join)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Control.Monad.State (State, get, put, evalState)
+import qualified Control.Monad.State as State
 import Control.Exception (assert)
 import Control.Parallel.Strategies (parMap, rdeepseq)
 
@@ -200,7 +201,7 @@ lookupOrCompute springs remReport =
             Nothing ->
                 do
                     x <- statefulCompute springs remReport
-                    put $ Map.insert key x alreadyComputed
+                    State.modify $ Map.insert key x
                     return x
 
 statefulCompute :: [Spring] -> [Int] -> State DP Int

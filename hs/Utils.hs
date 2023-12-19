@@ -44,7 +44,11 @@ cartesianProduct xs ys =
     return (x, y)
 
 debug :: (Show a) => a -> a
-debug x = unsafePerformIO (print x >> return x)
+-- debug x = unsafePerformIO (print x >> return x)
+debug = debugAnything print
+
+debugAnything :: (a -> IO b) -> a -> a
+debugAnything f x = unsafePerformIO (f x >> return x)
 
 both :: Bifunctor f => (a -> b) -> f a a -> f b b
 both f = Bifunctor.first f . Bifunctor.second f
