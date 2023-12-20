@@ -1,7 +1,7 @@
 import Data.Array (Array)
 import Grid2D (Pos)
 import qualified Grid2D
-import Utils (splitBy, zipWithIndexStarting, (<!>), both)
+import Utils (splitBy, zipWithIndexStarting, (<!>), both, debug)
 import Data.List (find)
 import Data.Maybe (fromMaybe, fromJust, isJust, maybeToList)
 import Control.Monad (join)
@@ -24,31 +24,8 @@ test =
   do
     testData <- readFile "../data/day13.test.txt"
     let grids = parse $ lines testData
-    let (grid1:grid2:[]) = grids
-    -- putStrLn $ Grid2D.showCharGrid grid1
-    -- putStrLn ""
-    -- putStrLn $ Grid2D.showCharGrid grid2
-    -- print $ map (fmap (length . fst) . findRowMirror) grids
-    -- print $ map (fmap (length . fst) . findColMirror) grids
 
     405 <!> part1 grids
-
-    let fixPos1 = (0, 0)
-    -- True <!> elem fixPos1 (candidateSmudges grid1)
-
-    let fixPos2 = (1, 4)
-    -- True <!> elem fixPos2 (candidateSmudges grid2)
-
-    let fixedGrid1 = invertAt grid1 fixPos1
-    let fixedGrid2 = invertAt grid2 fixPos2
-    -- putStrLn $ Grid2D.showCharGrid fixedGrid1
-    -- putStrLn ""
-    -- putStrLn $ Grid2D.showCharGrid fixedGrid2
-
-    (Just 3) <!> fmap (length . fst) (findRowMirror fixedGrid1)
-    (Just 5) <!> fmap (length . fst) (findColMirror fixedGrid1)
-    (Just 1) <!> fmap (length . fst) (findRowMirror fixedGrid2)
-    Nothing  <!> fmap (length . fst) (findColMirror fixedGrid2)
 
     400 <!> part2 grids
 
@@ -62,77 +39,51 @@ type Tile = Char
 parse :: [String] -> [Grid]
 parse lines = map Grid2D.parse $ splitBy [] lines
 
--- findMirror
+-- findReflections
 
-findMirror :: [[Tile]] -> Maybe ([[Tile]], [[Tile]])
-findMirror =
+findReflections :: Grid -> [ReflectionAxis]
+findReflections g = (map Row $ rowReflections g) ++ (map Col $ colReflections g)
+
+axisReflections :: [[Tile]] -> [Reflection]
+axisReflections =
     let
         mirror ([], r) = False
         mirror (l, []) = False
         mirror (l, r)  = all (uncurry (==)) $ zip (reverse l) r
         -- mirror (l, r)  = all (uncurry (/=)) $ reflection (l, r)
     in
-        find mirror . splits
-
-findRowMirror :: Grid -> Maybe ([[Tile]], [[Tile]])
-findRowMirror = findMirror . Grid2D.intoRows
-
-findColMirror :: Grid -> Maybe ([[Tile]], [[Tile]])
-findColMirror = findMirror . Grid2D.intoColumns
-
--- findMirror :: Int -> [[Tile]] -> Maybe ([[Tile]], [[Tile]])
--- findMirror ndiff =
-    -- let
-        -- diffCount ([], r) = Nothing
-        -- diffCount (l, []) = Nothing
-        -- -- TODO need to flatten the reflection before counting the differences
-        -- diffCount (l, r)  = Just $ length $ filter (uncurry (/=)) $ join $ map  $ reflection (l, r)
-        -- -- diffCount (l, r)  = Just $ length $ filter (uncurry (/=)) $ reflection (l, r)
-    -- in
-        -- find (\p -> (diffCount p) == (Just ndiff)) . splits
-        -- -- fmap fst . find (mirror . snd) . zipWithIndexStarting 1 . splits
-
--- findRowMirror :: Int -> Grid -> Maybe ([[Tile]], [[Tile]])
--- findRowMirror n = findMirror n . Grid2D.intoRows
-
--- findColMirror :: Int -> Grid -> Maybe ([[Tile]], [[Tile]])
--- findColMirror n = findMirror n . Grid2D.intoColumns
+        filter mirror . splits
 
 splits :: [a] -> [([a], [a])]
 splits xs = map ((flip splitAt) xs) [0..(length xs)]
 
+rowReflections :: Grid -> [Reflection]
+rowReflections = axisReflections . Grid2D.intoRows
+
+colReflections :: Grid -> [Reflection]
+colReflections = axisReflections . Grid2D.intoColumns
+
+-- findMirror
+
+findMirror :: Grid -> ReflectionAxis
+findMirror = findExactlyOne (const True) . findReflections
+
 -- part1
 
-countBeforeMirror :: Maybe ([[Tile]], [[Tile]]) -> Int
-countBeforeMirror = fromMaybe 0 . fmap (length . fst)
-
-part1 gs =
+mirrorValue :: ReflectionAxis -> Int
+mirrorValue m =
     let
-        f n mir = sum $ map ((*) n) $ map (countBeforeMirror . mir) gs
+        baseValue = length . fst
     in
-        (f 1 findColMirror) + (f 100 findRowMirror)
+        case m of
+            Row r -> 100 * (baseValue r)
+            Col c -> baseValue c
+
+part1 = sum . map (mirrorValue . findMirror)
 
 -- part2
 
-part2 =
-    let
-        value (Row r) = 100 * (baseValue r)
-        value (Col c) = baseValue c
-        baseValue = length . fst
-    in
-        sum . map (value . fixSmudge)
-
-mirrorAxes :: Grid -> [ReflectionAxis]
-mirrorAxes g =
-    let
-        extract wrap mir = map wrap $ maybeToList $ mir g
-    in
-        (extract Row findRowMirror) ++ (extract Col findColMirror)
-    -- case (findRowMirror g, findColMirror g) of
-        -- (Just r, Nothing)  -> Just $ Row r
-        -- (Nothing, Just c)  -> Just $ Col c
-        -- (Nothing, Nothing) -> Nothing
-        -- _ -> Nothing -- is this good enough?
+part2 = sum . map (mirrorValue . fixSmudge)
 
 -- fixSmudge
 
@@ -143,7 +94,7 @@ fineGrainReflection :: ([[a]], [[a]]) -> [(a, a)]
 fineGrainReflection = join . map (uncurry zip) . reflection
 
 fixSmudge :: Grid -> ReflectionAxis
-fixSmudge g = fromJust $ findExactlyOne isJust $ map (differentReflectionAxis (fromSingleton $ mirrorAxes g)) $ map (invertAt g) $ candidateSmudges g
+fixSmudge g = fromJust $ fromJust $ find isJust $ map (differentReflectionAxis (fromSingleton $ findReflections g)) $ map (invertAt g) $ candidateSmudges g
 
 invertAt :: Grid -> Pos -> Grid
 invertAt g pos = g // [(pos, invert (g ! pos))]
@@ -162,12 +113,12 @@ fromSingleton xs = error $ "Not exactly one value in " ++ (show xs)
 -- candidateSmudges
 
 -- smudges are always symmetrical: they lead to the same reflection axis no matter which symmetrical point we choose to fix
+-- However, we still need to consider both as they might not both lead to a reflection axis
 candidateSmudges :: Grid -> [Pos]
--- candidateSmudges = (=<<) pairToList . map head . filter (\difs -> (length difs) == 1) . allDiffs
-candidateSmudges = map fst . map head . filter (\difs -> (length difs) == 1) . allDiffs
+candidateSmudges = (=<<) pairToList . map head . filter (\difs -> (length difs) == 1) . allDiffs
 
--- pairToList :: (a, a) -> [a]
--- pairToList (l, r) = [l, r]
+pairToList :: (a, a) -> [a]
+pairToList (l, r) = [l, r]
 
 -- differences
 
@@ -189,8 +140,10 @@ diffPairs = map (both fst) . filter (\((_, a), (_, b)) -> a /= b) . {- [((Pos, T
 -- oneTrueSmudge
 -- That's the smudge that leads to a change in reflection axis
 
-data ReflectionAxis = Row ([[Tile]], [[Tile]]) | Col ([[Tile]], [[Tile]])
+data ReflectionAxis = Row Reflection | Col Reflection
     deriving (Eq, Show)
+
+type Reflection = ([[Tile]], [[Tile]])
 
 differentReflectionAxis :: ReflectionAxis -> Grid -> Maybe ReflectionAxis
 differentReflectionAxis prevReflectionAxis repairedMirror =
@@ -202,4 +155,4 @@ differentReflectionAxis prevReflectionAxis repairedMirror =
         axisEq (Col c1) (Col c2) = innerEq c1 c2
         axisEq _ _ = False
     in
-        find (axisNeq prevReflectionAxis) $ mirrorAxes repairedMirror
+        find (axisNeq prevReflectionAxis) $ findReflections repairedMirror
