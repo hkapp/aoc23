@@ -18,11 +18,19 @@ fn main() {
     }
 }
 
-fn test_data(day: u8) -> impl Iterator<Item=String> {
-    let filename = format!("../data/day{}.test.txt", day);
-    let file = File::open(filename).unwrap();
+fn read_data(filename: &str) -> impl Iterator<Item=String> {
+    let filepath = format!("../data/{}", filename);
+    let file = File::open(filepath).unwrap();
     let reader = io::BufReader::new(file);
     reader.lines()
         .map(Result::unwrap)
         .map(|x| x.to_string())
+}
+
+fn test_data(day: u8) -> impl Iterator<Item=String> {
+    read_data(&format!("day{}.test.txt", day))
+}
+
+fn real_data(day: u8) -> impl Iterator<Item=String> {
+    read_data(&format!("day{}.data.txt", day))
 }
