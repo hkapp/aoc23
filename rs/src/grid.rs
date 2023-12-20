@@ -82,6 +82,16 @@ impl<T> Grid<T> {
         Ok(())
     }
 
+    pub fn all_pos(&self) -> impl Iterator<Item=Pos> {
+        let row_count = self.row_count();
+        let col_count = self.col_count();
+        (0..row_count)
+            .flat_map(move |x| {
+                (0..col_count)
+                    .map(move |y| Pos::new(x, y))
+            })
+    }
+
     pub fn enumerate(&self) -> impl Iterator<Item=(Pos, &T)> {
         self.tiles
             .iter()
@@ -120,6 +130,18 @@ impl Direction {
     pub fn north() -> Self {
         Direction::Up
     }
+
+    pub fn south() -> Self {
+        Direction::Down
+    }
+
+    pub fn east() -> Self {
+        Direction::Right
+    }
+
+    pub fn west() -> Self {
+        Direction::Left
+    }
 }
 
 /***** Pos *****/
@@ -145,5 +167,13 @@ impl Pos {
                     .checked_add_signed(ydiff)
                     .map(|y| Pos::new(x, y))
             })
+    }
+
+    pub fn row_idx(&self) -> usize {
+        self.x
+    }
+
+    pub fn col_idx(&self) -> usize {
+        self.y
     }
 }

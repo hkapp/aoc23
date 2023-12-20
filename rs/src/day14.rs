@@ -12,15 +12,34 @@ use Tile::*;
 
 pub fn run () {
     let g = Grid::parse(super::real_data(14));
-
     let answer1 = part1(g);
     println!("{}", answer1);
-    assert_eq!(answer1, 110565)
+    assert_eq!(answer1, 110565);
+
+    let g = Grid::parse(super::real_data(14));
+    let answer2 = part2(g);
+    println!("{}", answer2);
+    assert_eq!(answer1, 89845);
 }
 
 fn part1(mut g: Grid) -> usize {
     tilt(&mut g, Direction::north());
 
+    compute_answer(&g)
+}
+
+fn part2(mut g: Grid) -> usize {
+    // This number of repetitions is much smaller than what is actually asked,
+    // but we can expect the system to stabilize before that
+    // In practice this value is good enough
+    for _ in 0..1000 {
+        tilt_cycle(&mut g);
+    }
+
+    compute_answer(&g)
+}
+
+fn compute_answer(g: &Grid) -> usize {
     g.enumerate()
         .filter(|(_, tile)| **tile == MovingRock)
         .map(|(p, _)| load(&g, p))
@@ -52,12 +71,40 @@ impl grid::CharTile for Tile {
 }
 
 fn tilt(grid: &mut Grid, d: Direction) {
-    for x in 0..grid.row_count() {
-        for y in 0..grid.col_count() {
-            let pos = Pos::new(x, y);
-            move_all_the_way(grid, pos, d);
-        }
+    for pos in processing_order(grid, d) {
+        move_all_the_way(grid, pos, d);
     }
+}
+
+fn processing_order(grid: &Grid, d: Direction) -> Vec<Pos> {
+    let mut indexes: Vec<Pos> = grid.all_pos().collect();
+
+    match d {
+        // North: process north rows first
+        Direction::Up =>
+            indexes.sort_unstable_by_key(|pos| pos.row_idx()),
+
+        // South: process south rows first
+        Direction::Down =>
+            indexes.sort_unstable_by_key(|pos| std::cmp::Reverse(pos.row_idx())),
+
+        // West: process west cols first
+        Direction::Left =>
+            indexes.sort_unstable_by_key(|pos| pos.col_idx()),
+
+        // East: process east cols first
+        Direction::Right =>
+            indexes.sort_unstable_by_key(|pos| std::cmp::Reverse(pos.col_idx())),
+    };
+
+    return indexes;
+}
+
+fn tilt_cycle(grid: &mut Grid) {
+    tilt(grid, Direction::north());
+    tilt(grid, Direction::west());
+    tilt(grid, Direction::south());
+    tilt(grid, Direction::east());
 }
 
 fn move_all_the_way(grid: &mut Grid, pos: Pos, d: Direction) {
@@ -106,6 +153,17 @@ mod test {
         assert_eq!(g.get_pos(Pos::new(1, 0)), Some(&MovingRock));
     }
 
+    fn assert_grid_eq(found: &Grid, expected: &Grid) {
+        if expected != found {
+            println!("Expected:");
+            expected.show();
+            println!(" !=");
+            println!("Found:");
+            found.show();
+            panic!();
+        }
+    }
+
     #[test]
     fn tilt() {
         let mut g = test_grid();
@@ -127,14 +185,7 @@ mod test {
             .into_iter()
             .map(String::from));
 
-        if expected != g {
-            println!("Expected:");
-            expected.show();
-            println!(" !=");
-            println!("Found:");
-            g.show();
-            panic!();
-        }
+        assert_grid_eq(&g, &expected);
     }
 
     #[test]
@@ -155,5 +206,51 @@ mod test {
     fn part1() {
         let g = test_grid();
         assert_eq!(super::part1(g), 136);
+    }
+
+    #[test]
+    fn tilt_cycle1() {
+        let mut g = test_grid();
+        g.show();
+        println!();
+        super::tilt(&mut g, Direction::north());
+        g.show();
+        println!();
+        super::tilt(&mut g, Direction::west());
+        g.show();
+        println!();
+        super::tilt(&mut g, Direction::south());
+        g.show();
+        println!();
+        super::tilt(&mut g, Direction::east());
+        g.show();
+        println!();
+
+        let mut g = test_grid();
+        super::tilt_cycle(&mut g);
+
+        let expected = Grid::parse(
+            vec!(
+                ".....#....",
+                "....#...O#",
+                "...OO##...",
+                ".OO#......",
+                ".....OOO#.",
+                ".O#...O#.#",
+                "....O#....",
+                "......OOOO",
+                "#...O###..",
+                "#..OO#...."
+            )
+            .into_iter()
+            .map(String::from));
+
+        assert_grid_eq(&g, &expected);
+    }
+
+    #[test]
+    fn part2() {
+        let g = test_grid();
+        assert_eq!(super::part2(g), 64);
     }
 }
