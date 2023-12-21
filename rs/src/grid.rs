@@ -112,6 +112,10 @@ impl<T> Grid<T> {
         && p.row_idx() < self.row_count()
         && p.col_idx() < self.col_count()
     }
+
+    pub fn bottom_right_corner(&self) -> Pos {
+        Pos::from_row_col(self.row_count() - 1, self.col_count() - 1)
+    }
 }
 
 pub trait CharTile {
@@ -127,9 +131,59 @@ impl<T> std::ops::Index<Pos> for Grid<T> {
     }
 }
 
+/***** Pos *****/
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash, PartialOrd, Ord)]
+pub struct Pos {
+    pub x: usize,
+    pub y: usize,
+}
+
+impl Pos {
+    pub fn new(x: usize, y: usize) -> Self {
+        Pos { x, y }
+    }
+
+    pub fn from_row_col(row_idx: usize, col_idx: usize) -> Self {
+        Self::new(row_idx, col_idx)
+    }
+
+    pub fn mov(&self, d: Direction) -> Option<Self> {
+        let (xdiff, ydiff) = d.as_vector();
+
+        self.x
+            .checked_add_signed(xdiff)
+            .and_then(|x| {
+                self.y
+                    .checked_add_signed(ydiff)
+                    .map(|y| Pos::new(x, y))
+            })
+    }
+
+    pub fn move_within<T>(&self, d: Direction, g: &Grid<T>) -> Option<Self> {
+        self.mov(d)
+            .and_then(|new| {
+                if g.contains_pos(new) {
+                    Some(new)
+                }
+                else {
+                    None
+                }
+            })
+    }
+
+    pub fn row_idx(&self) -> usize {
+        self.x
+    }
+
+    pub fn col_idx(&self) -> usize {
+        self.y
+    }
+}
+
 /***** Direction *****/
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
 pub enum Direction {
     Left, Right, Up, Down
 }
@@ -175,38 +229,36 @@ impl Direction {
             Down  => Up,
         }
     }
-}
 
-/***** Pos *****/
-
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
-pub struct Pos {
-    pub x: usize,
-    pub y: usize,
-}
-
-impl Pos {
-    pub fn new(x: usize, y: usize) -> Self {
-        Pos { x, y }
+    pub fn turn_left(&self) -> Self {
+        /*    ^
+         *    |
+         * <--+-->
+         *    |
+         *    v
+         */
+        use Direction::*;
+        match self {
+            Up    => Left,
+            Left  => Down,
+            Down  => Right,
+            Right => Up,
+        }
     }
 
-    pub fn mov(&self, d: Direction) -> Option<Self> {
-        let (xdiff, ydiff) = d.as_vector();
-
-        self.x
-            .checked_add_signed(xdiff)
-            .and_then(|x| {
-                self.y
-                    .checked_add_signed(ydiff)
-                    .map(|y| Pos::new(x, y))
-            })
-    }
-
-    pub fn row_idx(&self) -> usize {
-        self.x
-    }
-
-    pub fn col_idx(&self) -> usize {
-        self.y
+    pub fn turn_right(&self) -> Self {
+        /*    ^
+         *    |
+         * <--+-->
+         *    |
+         *    v
+         */
+        use Direction::*;
+        match self {
+            Up    => Right,
+            Right => Down,
+            Down  => Left,
+            Left  => Up,
+        }
     }
 }
