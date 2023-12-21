@@ -8,13 +8,27 @@ pub fn run () {
     println!("{}", answer1);
     assert_eq!(answer1, 7939);
 
-    //let answer2 = part2(&steps);
-    //println!("{}", answer2);
-    //assert_eq!(answer2, 236057);
+    let answer2 = part2(&c);
+    println!("{}", answer2);
+    assert_eq!(answer2, 8318);
 }
 
 fn part1(c: &Contraption) -> usize {
-    energized(light_flow(c)).len()
+    let start_pos = Pos::new(0, 0);
+    let start_dir = Direction::Right;
+
+    count_energized_starting(c, start_pos, start_dir)
+}
+
+fn count_energized_starting(c: &Contraption, start_pos: Pos, start_dir: Direction) -> usize {
+    energized(light_flow(c, start_pos, start_dir)).len()
+}
+
+fn part2(c: &Contraption) -> usize {
+    all_starting_states(c)
+        .map(|(p, d)| count_energized_starting(c, p, d))
+        .max()
+        .unwrap()
 }
 
 #[derive(Copy, Clone)]
@@ -66,10 +80,7 @@ impl grid::CharTile for Tile {
 
 type LightHistory = HashSet<(Pos, Direction)>;
 
-fn light_flow(c: &Contraption) -> LightHistory {
-    let start_pos = Pos::new(0, 0);
-    let start_dir = Direction::Right;
-
+fn light_flow(c: &Contraption, start_pos: Pos, start_dir: Direction) -> LightHistory {
     let mut history = LightHistory::new();
     let mut frontier = vec![(start_pos, start_dir)];
 
@@ -177,6 +188,21 @@ fn energized(history: LightHistory) -> HashSet<Pos> {
         .collect()
 }
 
+fn all_starting_states(c: &Contraption) -> impl Iterator<Item=(Pos, Direction)> + '_ {
+    c.all_pos()
+        .flat_map(|p| {
+            Direction::all()
+                .map(|d| (p, d))
+        })
+        .filter(move |(p, d)| {
+            // We want to keep the pairs whose reverse move is not within the grid
+            match p.mov(d.reverse()) {
+                Some(q) => !c.contains_pos(q),
+                None    => true,
+            }
+        })
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -188,5 +214,10 @@ mod test {
     #[test]
     fn part1() {
         assert_eq!(super::part1(&test_data()), 46);
+    }
+
+    #[test]
+    fn part2() {
+        assert_eq!(super::part2(&test_data()), 51);
     }
 }

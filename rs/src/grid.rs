@@ -160,6 +160,21 @@ impl Direction {
     pub fn west() -> Self {
         Direction::Left
     }
+
+    pub fn all() -> [Self; 4] {
+        use Direction::*;
+        [Left, Right, Up, Down]
+    }
+
+    pub fn reverse(&self) -> Self {
+        use Direction::*;
+        match self {
+            Left  => Right,
+            Right => Left,
+            Up    => Down,
+            Down  => Up,
+        }
+    }
 }
 
 /***** Pos *****/
