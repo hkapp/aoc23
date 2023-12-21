@@ -104,6 +104,14 @@ impl<T> Grid<T> {
                     .map(move |(y, tile)| (Pos::new(x, y), tile))
             })
     }
+
+    #[allow(unused_comparisons)]
+    pub fn contains_pos(&self, p: Pos) -> bool {
+        p.x >= 0
+        && p.y >= 0
+        && p.row_idx() < self.row_count()
+        && p.col_idx() < self.col_count()
+    }
 }
 
 pub trait CharTile {
@@ -111,9 +119,17 @@ pub trait CharTile {
     fn to_char(&self) -> char;
 }
 
+impl<T> std::ops::Index<Pos> for Grid<T> {
+    type Output = T;
+
+    fn index(&self, index: Pos) -> &Self::Output {
+        self.get_pos(index).unwrap()
+    }
+}
+
 /***** Direction *****/
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Direction {
     Left, Right, Up, Down
 }
@@ -148,7 +164,7 @@ impl Direction {
 
 /***** Pos *****/
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
 pub struct Pos {
     pub x: usize,
     pub y: usize,
