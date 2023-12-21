@@ -1,4 +1,5 @@
 mod day14;
+mod day15;
 mod grid;
 
 use std::io::{self, BufRead};
@@ -14,6 +15,7 @@ fn main() {
 
     match day {
         14 => day14::run(),
+        15 => day15::run(),
         _  => panic!("Unrecognized day argument '{}'", day)
     }
 }
@@ -27,6 +29,7 @@ fn read_data(filename: &str) -> impl Iterator<Item=String> {
         .map(|x| x.to_string())
 }
 
+#[cfg(test)]
 fn test_data(day: u8) -> impl Iterator<Item=String> {
     read_data(&format!("day{}.test.txt", day))
 }

@@ -27,6 +27,7 @@ impl<T: CharTile> Grid<T> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn show(&self) {
         for row in self.rows() {
             for tile in row.iter() {
@@ -38,6 +39,7 @@ impl<T: CharTile> Grid<T> {
 }
 
 impl<T> Grid<T> {
+    #[allow(dead_code)]
     pub fn rows(&self) -> impl Iterator<Item=&Vec<T>> {
         self.tiles.iter()
     }
