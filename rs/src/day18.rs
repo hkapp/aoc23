@@ -1,21 +1,29 @@
 use crate::grid::{Direction, Pos, Plane, Grid};
 
 pub fn run () {
-    let instructions = super::real_data(18)
-                                .map(|s| parse_line(&s));
-    let mut pool = dig_pool_border(instructions);
+    let instructions = || super::real_data(18);
 
-    let answer1 = part1(&mut pool);
+    let answer1 = part1(instructions());
     println!("{}", answer1);
     assert_eq!(answer1, 45159);
 
-    //let answer2 = part2(&map);
-    //println!("{}", answer2);
+    let answer2 = part2(instructions());
+    println!("{}", answer2);
     //assert_eq!(answer2, 1268);
 }
 
-fn part1(pool: &mut LavaPool) -> usize {
-    pool_surface(pool)
+fn part1<I: Iterator<Item=String>>(text_instructions: I) -> usize {
+    let instructions = text_instructions.map(|s| parse_line(&s));
+
+    pool_surface(
+        &mut dig_pool_border(instructions))
+}
+
+fn part2<I: Iterator<Item=String>>(text_instructions: I) -> usize {
+    let instructions = text_instructions.map(|s| parse_line_hex(&s));
+
+    pool_surface(
+        &mut dig_pool_border(instructions))
 }
 
 type Dig = (Direction, usize);
@@ -76,6 +84,7 @@ impl Digger {
     }
 
     fn dig(&mut self, d: Dig) {
+        println!("dig {:?}", d);
         let (dir, count) = d;
         for _ in 0..count {
             self.dig_one_meter(dir);
@@ -114,6 +123,7 @@ fn dig_pool_border<I: Iterator<Item=Dig>>(instructions: I) -> LavaPool {
     for w in instructions {
         worker.dig(w);
     }
+    println!("Done with the instructions");
 
     worker.pool
         .into_grid(Terrain::Untouched)
@@ -125,6 +135,10 @@ fn paint_fill(pool: &mut LavaPool, side_yes: Terrain) {
                         .filter(|(_, t)| **t == side_yes)
                         .map(|(p, _)| p)
                         .collect::<Vec<_>>();
+
+    if queue.len() % 1000000 == 0 {
+        println!("queue size = {}", queue.len());
+    }
 
     while !queue.is_empty() {
         let p = queue.pop().unwrap();
@@ -151,8 +165,11 @@ fn paint_fill(pool: &mut LavaPool, side_yes: Terrain) {
 }
 
 fn pool_surface(pool: &mut LavaPool) -> usize {
+    println!("Start paint fill 1");
     paint_fill(pool, Terrain::Lhs);
+    println!("Start paint fill 2");
     paint_fill(pool, Terrain::Rhs);
+    println!("Completed both paint fills");
 
     let side_in = find_side_in(pool);
 
@@ -179,23 +196,50 @@ fn find_side_in(pool: &LavaPool) -> Terrain {
     }
 }
 
+fn parse_line_hex(line: &str) -> Dig {
+    // R 6 (#70c710)
+    let hex_section = line.split(" ").last().unwrap();
+
+    // str range indexing works at the byte level
+    // this code only makes sense if this is actually an ascii string
+    assert!(hex_section.is_ascii());
+
+    // (#70c710)
+    let count_hex = &hex_section[2..7]; // hex_sections.chars().drop(2).take(5);
+    let count = usize::from_str_radix(count_hex, 16).unwrap();
+
+    let dir_hex = hex_section.chars().skip(7).next().unwrap();
+    let dir = parse_dir_hex(dir_hex);
+
+    (dir, count)
+}
+
+fn parse_dir_hex(c: char) -> Direction {
+    use Direction::*;
+    match c {
+        '0' => Right,
+        '1' => Down,
+        '2' => Left,
+        '3' => Up,
+        _   => panic!("Unrecognized character {:?}", c),
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
 
-    fn test_data() -> LavaPool {
-        let instructions = super::super::test_data(18)
-                                .map(|s| parse_line(&s));
-        dig_pool_border(instructions)
+    fn test_data() -> impl Iterator<Item=String> {
+        super::super::test_data(18)
     }
 
     #[test]
     fn part1() {
-        assert_eq!(super::part1(&mut test_data()), 62);
+        assert_eq!(super::part1(test_data()), 62);
     }
 
-    //#[test]
-    //fn part2() {
-        //assert_eq!(super::part2(&test_data()), 94);
-    //}
+    #[test]
+    fn part2() {
+        assert_eq!(super::part2(test_data()), 952408144115);
+    }
 }
