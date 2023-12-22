@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 /*  --y-->
  * |
  * x
@@ -44,12 +46,20 @@ impl<T> Grid<T> {
         self.tiles.iter()
     }
 
-    pub fn row_count(&self) -> usize {
+    pub fn height(&self) -> usize {
         self.tiles.len()
     }
 
-    pub fn col_count(&self) -> usize {
+    pub fn width(&self) -> usize {
         self.tiles[0].len()
+    }
+
+    pub fn row_count(&self) -> usize {
+        self.height()
+    }
+
+    pub fn col_count(&self) -> usize {
+        self.width()
     }
 
     pub fn get_pos(&self, pos: Pos) -> Option<&T> {
@@ -62,6 +72,11 @@ impl<T> Grid<T> {
         self.tiles
             .get_mut(pos.x)
             .and_then(|row| row.get_mut(pos.y))
+    }
+
+    pub fn set_pos(&mut self, pos: Pos, value: T) {
+        let target = self.get_pos_mut(pos).unwrap();
+        *target = value;
     }
 
     pub fn swap(&mut self, pos1: Pos, pos2: Pos) -> Result<(), String> {
@@ -105,6 +120,12 @@ impl<T> Grid<T> {
             })
     }
 
+    pub fn iter(&self) -> impl Iterator<Item=&T> {
+        self.tiles
+            .iter()
+            .flat_map(|row| row.iter())
+    }
+
     #[allow(unused_comparisons)]
     pub fn contains_pos(&self, p: Pos) -> bool {
         p.x >= 0
@@ -115,6 +136,11 @@ impl<T> Grid<T> {
 
     pub fn bottom_right_corner(&self) -> Pos {
         Pos::from_row_col(self.row_count() - 1, self.col_count() - 1)
+    }
+
+    pub fn on_the_border(&self, pos: Pos) -> bool {
+        (pos.x == 0 || pos.x == self.height() - 1)
+        && (pos.y == 0 || pos.y == self.width() - 1)
     }
 }
 
@@ -128,6 +154,14 @@ impl<T> std::ops::Index<Pos> for Grid<T> {
 
     fn index(&self, index: Pos) -> &Self::Output {
         self.get_pos(index).unwrap()
+    }
+}
+
+impl<T: Clone> Grid<T> {
+    pub fn init(height: usize, width: usize, repeated_elem: T) -> Self {
+        let repeated_row = vec![repeated_elem; width];
+        let all_data = vec![repeated_row; height];
+        Grid { tiles: all_data }
     }
 }
 
@@ -260,5 +294,50 @@ impl Direction {
             Down  => Left,
             Left  => Up,
         }
+    }
+}
+
+/***** Plane *****/
+// An infinite-looking Grid
+
+pub struct Plane<T> (pub HashMap<Pos, T>);
+
+impl<T> Plane<T> {
+    pub fn new() -> Self {
+        Plane(HashMap::new())
+    }
+
+    pub fn origin(&self) -> Pos {
+        // Note: Pos coordinates are usize, not isize
+        // Use the middle of the usize range as origin
+        let o = 1usize.rotate_right(1);
+        Pos::new(o, o)
+    }
+}
+
+impl<T: Clone> Plane<T> {
+    pub fn into_grid(self, default_elem: T) -> Option<Grid<T>> {
+        let all_pos = || self.0.keys();
+        let all_xs = || all_pos().map(|p| p.x);
+        let all_ys = || all_pos().map(|p| p.y);
+
+        let top_border = all_xs().min()?;
+        let bottom_border = all_xs().max()?;
+        let left_border = all_ys().min()?;
+        let right_border = all_ys().max()?;
+
+        let width  = right_border - left_border + 1;
+        let height = bottom_border - top_border + 1;
+
+        let mut grid = Grid::init(height, width, default_elem);
+
+        for (plane_pos, value) in self.0 {
+            let grid_x = plane_pos.x - top_border;
+            let grid_y = plane_pos.y - left_border;
+            let grid_pos = Pos::new(grid_x, grid_y);
+            grid.set_pos(grid_pos, value);
+        }
+
+        Some(grid)
     }
 }
