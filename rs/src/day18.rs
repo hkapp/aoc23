@@ -1,4 +1,4 @@
-use crate::grid::{Direction, Pos, Plane, Grid};
+use crate::grid::{Direction, Pos, Plane};
 
 pub fn run () {
     let instructions = || super::real_data(18);
@@ -55,67 +55,84 @@ fn parse_dir(c: char) -> Direction {
 }
 
 struct Digger {
-    curr_pos: Pos,
-    pool:     Quarry,
+    curr_pos:    Pos,
+    pool_border: Vec<Segment>,
 }
 
-type Quarry = Plane<Terrain>;
+// Ranges are inclusive
+enum Segment {
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-enum Terrain {
-    Untouched,
-    Tunnel,
-    Lhs,
-    Rhs
+    /*  y1        y2
+     * x **********
+     */
+    Horizontal { x: usize, y1: usize, y2: usize },
+
+    /*     y
+     *  x1 *
+     *     *
+     *     *
+     *  x2 *
+     */
+    Vertical   { x1: usize, x2: usize, y: usize },
 }
 
 impl Digger {
     fn new() -> Self {
-        let mut pool = Quarry::new();
-        let start_pos = pool.origin();
-
-        // The digger starts in a 1 meter cube hole in the ground
-        pool.0.insert(start_pos, Terrain::Tunnel);
-
         Digger {
-            curr_pos: start_pos,
-            pool
+            curr_pos:    Plane::<()>::origin(),
+            pool_border: Vec::new(),
         }
     }
 
     fn dig(&mut self, d: Dig) {
-        println!("dig {:?}", d);
+        use Direction::*;
         let (dir, count) = d;
-        for _ in 0..count {
-            self.dig_one_meter(dir);
-        }
-    }
 
-    fn dig_one_meter(&mut self, d: Direction) {
-        use Terrain::*;
+        /*   y-->
+         *  x
+         *  |
+         *  v
+         */
+        let curr_pos = self.curr_pos;
+        let curr_x = curr_pos.x;
+        let curr_y = curr_pos.y;
+        let (new_pos, new_segment) =
+            match dir {
+                Right => {
+                    let new_y = curr_y + count;
+                    let new_pos = Pos::new(curr_x, new_y);
+                    let segment = Segment::Horizontal { x: curr_x, y1: curr_y, y2: new_y };
+                    (new_pos, segment)
+                },
 
-        let prev_pos = self.curr_pos;
-        let new_pos = prev_pos.mov(d).unwrap();
+                Left => {
+                    let new_y = curr_y - count;
+                    let new_pos = Pos::new(curr_x, new_y);
+                    let segment = Segment::Horizontal { x: curr_x, y1: new_y, y2: curr_y };
+                    (new_pos, segment)
+                },
+
+                Down => {
+                    let new_x = curr_x + count;
+                    let new_pos = Pos::new(new_x, curr_y);
+                    let segment = Segment::Vertical { x1: curr_x, x2: new_x, y: curr_y };
+                    (new_pos, segment)
+                },
+
+                Up => {
+                    let new_x = curr_x - count;
+                    let new_pos = Pos::new(new_x, curr_y);
+                    let segment = Segment::Vertical { x1: new_x, x2: curr_x, y: curr_y };
+                    (new_pos, segment)
+                },
+            };
+
         self.curr_pos = new_pos;
-
-        self.pool.0.insert(new_pos, Terrain::Tunnel);
-
-        let mut mark = |u, v| {
-            let p = new_pos.mov(u).unwrap();
-            match self.pool.0.get(&p) {
-                None => { self.pool.0.insert(p, v); },
-                Some(Tunnel) => {}, // don't mark dug tiles
-                Some(Untouched) => unreachable!(), // this cannot happen at this stage, would be None
-                Some(w) => assert_eq!(w, &v),
-            }
-        };
-
-        mark(d.turn_left(),  Lhs);
-        mark(d.turn_right(), Rhs);
+        self.pool_border.push(new_segment);
     }
 }
 
-type LavaPool = Grid<Terrain>;
+type LavaPool = Vec<Segment>;
 
 fn dig_pool_border<I: Iterator<Item=Dig>>(instructions: I) -> LavaPool {
     let mut worker = Digger::new();
@@ -123,77 +140,95 @@ fn dig_pool_border<I: Iterator<Item=Dig>>(instructions: I) -> LavaPool {
     for w in instructions {
         worker.dig(w);
     }
-    println!("Done with the instructions");
 
-    worker.pool
-        .into_grid(Terrain::Untouched)
-        .unwrap()
+    worker.pool_border
 }
 
-fn paint_fill(pool: &mut LavaPool, side_yes: Terrain) {
-    let mut queue = pool.enumerate()
-                        .filter(|(_, t)| **t == side_yes)
-                        .map(|(p, _)| p)
-                        .collect::<Vec<_>>();
+fn pool_surface(pool: &LavaPool) -> usize {
+    let (x_min, x_max) = min_max_x(&pool);
 
-    if queue.len() % 1000000 == 0 {
-        println!("queue size = {}", queue.len());
+    let mut surface = 0;
+    for x in x_min..(x_max + 1) {
+        let mut intersection_ys = pool.into_iter()
+                                    .flat_map(|s| s.row_intersections(x).into_iter())
+                                    .collect::<Vec<_>>();
+        intersection_ys.sort_unstable();
+        // Note: shared corners will generate duplicates
+        intersection_ys.dedup();
+        println!("ys = {:?}", &intersection_ys);
+
+        let mut sorted_ys = intersection_ys.into_iter();
+        while let Some(left_y) = sorted_ys.next() {
+            let right_y = sorted_ys.next().unwrap();
+            surface += right_y - left_y + 1;
+        }
     }
 
-    while !queue.is_empty() {
-        let p = queue.pop().unwrap();
-        let neighbors = IntoIterator::into_iter(Direction::all())
-                            .filter_map(|d| p.move_within(d, pool))
-                            .collect::<Vec<_>>();
+    return surface;
+}
 
-        for n in neighbors {
-            use Terrain::*;
-            match pool[n] {
-                Untouched => {
-                    pool.set_pos(n, side_yes);
-                    queue.push(n);
+impl Segment {
+    // Return the y values that cross row x
+    // For any segment, there will be between 0 and 2 such points
+    // Note that for horizontal segments with value x, we return the left-most and right-most points only
+    fn row_intersections(&self, x_search: usize) -> Vec<usize> {
+        match self {
+            Segment::Horizontal { x, y1, y2 } => {
+                if *x == x_search {
+                    /* Patch the special case
+                     *
+                     *   ***    *
+                     *
+                     * Without patch, we get an odd number of ys, which is normally not possible
+                     */
+                    let range_len = y2 - y1 + 1;
+                    if range_len % 2 == 0 {
+                        println!("{} x (x: {}, y1: {}, y2: {}) = [{}, {}]",
+                            x_search, x, y1, y2, y1, y2);
+                        vec![*y1, *y2]
+                    }
+                    else {
+                        println!("{} x (x: {}, y1: {}, y2: {}) = [{}, {}, {}]",
+                            x_search, x, y1, y2, y1, y2-1, y2);
+                        vec![*y1, y2-1, *y2]
+                    }
                 }
+                else {
+                    println!("{} x (x: {}, y1: {}, y2: {}) = []",
+                        x_search, x, y1, y2);
+                    Vec::new()
+                }
+            }
 
-                Tunnel => {},  // do nothing
-
-                some_side => {
-                    assert_eq!(some_side, side_yes);
+            Segment::Vertical { x1, x2, y } => {
+                if x_search >= *x1 && x_search <= *x2 {
+                    println!("{} x (x1: {}, x2: {}, y: {}) = [{}]",
+                        x_search, x1, x2, y, y);
+                    vec![*y]
+                }
+                else {
+                    println!("{} x (x1: {}, x2: {}, y: {}) = []",
+                        x_search, x1, x2, y);
+                    Vec::new()
                 }
             }
         }
     }
-}
 
-fn pool_surface(pool: &mut LavaPool) -> usize {
-    println!("Start paint fill 1");
-    paint_fill(pool, Terrain::Lhs);
-    println!("Start paint fill 2");
-    paint_fill(pool, Terrain::Rhs);
-    println!("Completed both paint fills");
-
-    let side_in = find_side_in(pool);
-
-    pool.iter()
-        .filter(|t| **t == Terrain::Tunnel || **t == side_in)
-        .count()
-}
-
-// Find the side that is inside
-// Result is guaranteed to be either Lhs or Rhs
-fn find_side_in(pool: &LavaPool) -> Terrain {
-    use Terrain::{Lhs, Rhs};
-    let side_out = pool.enumerate()
-                    .filter(|(p, _)| pool.on_the_border(*p))
-                    .map(|(_, t)| *t)
-                    .find(|t| *t == Lhs || *t == Rhs)
-                    .unwrap();
-
-    // The side "inside" is the opposite of the side "outside"
-    match side_out {
-        Lhs => Rhs,
-        Rhs => Lhs,
-        _   => unreachable!(),
+    fn x_range(&self) -> Vec<usize> {
+        match self {
+            Segment::Horizontal { x, .. } => vec![*x],
+            Segment::Vertical { x1, x2, .. } => vec![*x1, *x2],
+        }
     }
+}
+
+fn min_max_x(pool: &[Segment]) -> (usize, usize) {
+    let xs = || pool.iter()
+                    .flat_map(|s| s.x_range().into_iter());
+    let min = xs().min().unwrap();
+    let max = xs().max().unwrap();
+    (min, max)
 }
 
 fn parse_line_hex(line: &str) -> Dig {

@@ -307,7 +307,7 @@ impl<T> Plane<T> {
         Plane(HashMap::new())
     }
 
-    pub fn origin(&self) -> Pos {
+    pub fn origin() -> Pos {
         // Note: Pos coordinates are usize, not isize
         // Use the middle of the usize range as origin
         let o = 1usize.rotate_right(1);
