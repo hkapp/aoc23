@@ -9,21 +9,21 @@ pub fn run () {
 
     let answer2 = part2(instructions());
     println!("{}", answer2);
-    //assert_eq!(answer2, 1268);
+    assert_eq!(answer2, 134549294799713);
 }
 
 fn part1<I: Iterator<Item=String>>(text_instructions: I) -> usize {
     let instructions = text_instructions.map(|s| parse_line(&s));
 
-    pool_surface(
-        &mut dig_pool_border(instructions))
+    let pool = dig_pool(instructions);
+    pool_surface(&pool)
 }
 
 fn part2<I: Iterator<Item=String>>(text_instructions: I) -> usize {
     let instructions = text_instructions.map(|s| parse_line_hex(&s));
 
-    pool_surface(
-        &mut dig_pool_border(instructions))
+    let pool = dig_pool(instructions);
+    pool_surface(&pool)
 }
 
 type Dig = (Direction, usize);
@@ -57,9 +57,12 @@ fn parse_dir(c: char) -> Direction {
 struct Digger {
     curr_pos:    Pos,
     pool_border: Vec<Segment>,
+    lhs:         Vec<Segment>,
+    rhs:         Vec<Segment>,
 }
 
 // Ranges are inclusive
+#[derive(Copy, Clone)]
 enum Segment {
 
     /*  y1        y2
@@ -81,6 +84,8 @@ impl Digger {
         Digger {
             curr_pos:    Plane::<()>::origin(),
             pool_border: Vec::new(),
+            lhs:         Vec::new(),
+            rhs:         Vec::new(),
         }
     }
 
@@ -129,38 +134,111 @@ impl Digger {
 
         self.curr_pos = new_pos;
         self.pool_border.push(new_segment);
+
+        let lhs_mark = new_segment.translate(dir.rotate_left());
+        self.lhs.push(lhs_mark);
+
+        let rhs_mark = new_segment.translate(dir.rotate_right());
+        self.rhs.push(rhs_mark);
     }
 }
 
-type LavaPool = Vec<Segment>;
+struct LavaPool {
+    border: Vec<Segment>,
+    inside: Vec<Segment>
+}
 
-fn dig_pool_border<I: Iterator<Item=Dig>>(instructions: I) -> LavaPool {
+fn dig_pool<I: Iterator<Item=Dig>>(instructions: I) -> LavaPool {
     let mut worker = Digger::new();
 
     for w in instructions {
         worker.dig(w);
     }
 
-    worker.pool_border
+    let pool_border = worker.pool_border;
+    let side_in = find_side_in(&pool_border, worker.lhs, worker.rhs);
+
+    LavaPool {
+        border: pool_border,
+        inside: side_in,
+    }
+}
+
+fn find_side_in(pool_border: &[Segment], lhs: Vec<Segment>, rhs: Vec<Segment>) -> Vec<Segment> {
+    /* Here is the method we use to figure out the side inside the loop:
+     * We rather find the side outside the loop. The other is then guaranteed to be inside.
+     * We find the outside by:
+     *  1. generating a point just above the highest point out of all the segments
+     *  2. figuring out on which side this point lies
+     * This is guaranteed to be the outside.
+     * It is also guaranteed to be "caught" by our lhs/rhs marks.
+     */
+    let highest_point = pool_border.into_iter()
+                            .flat_map(|s| IntoIterator::into_iter(s.edges()))
+                            .min_by_key(|p| p.x)
+                            .unwrap();
+    let tested_point = highest_point.mov(Direction::Up).unwrap();
+
+    let lhs_contains = segments_contain(tested_point, &lhs);
+    let rhs_contains = segments_contain(tested_point, &rhs);
+
+    match (lhs_contains, rhs_contains) {
+        (true, false)  => rhs,
+        (false, true)  => lhs,
+        (true, true)   => panic!("Both sides contain"),
+        (false, false) => panic!("No side contains"),
+    }
+}
+
+fn segments_contain(point: Pos, segments: &[Segment]) -> bool {
+    segments.into_iter()
+        .any(|s| s.contains(point))
 }
 
 fn pool_surface(pool: &LavaPool) -> usize {
-    let (x_min, x_max) = min_max_x(&pool);
+    let (x_min, x_max) = min_max_x(&pool.border);
 
     let mut surface = 0;
     for x in x_min..(x_max + 1) {
-        let mut intersection_ys = pool.into_iter()
+        let mut intersection_ys = pool.border
+                                    .iter()
                                     .flat_map(|s| s.row_intersections(x).into_iter())
                                     .collect::<Vec<_>>();
         intersection_ys.sort_unstable();
-        // Note: shared corners will generate duplicates
-        intersection_ys.dedup();
-        println!("ys = {:?}", &intersection_ys);
 
-        let mut sorted_ys = intersection_ys.into_iter();
-        while let Some(left_y) = sorted_ys.next() {
-            let right_y = sorted_ys.next().unwrap();
-            surface += right_y - left_y + 1;
+        let range_len = |a, b| b - a + 1;
+
+        let mut unseen_y = None;
+        for (y_start, y_end) in intersection_ys {
+            match unseen_y {
+                // First range: simple case
+                None => {
+                    //surface += y_end - y_start + 1;
+                    surface += range_len(y_start, y_end);
+                }
+
+                Some(unseen_y) => {
+                    // Case 1: the last unseen y is beyond the end of the current range
+                    // This can only happen if the previous was an overlap
+                    if unseen_y > y_end {
+                        assert_eq!(unseen_y, y_end + 1);
+                    }
+                    // Case 2: the previous y overlaps the current range
+                    else if unseen_y >= y_start && unseen_y <= y_end {
+                        surface += range_len(unseen_y, y_end);
+                    }
+                    else {
+                        // Case 3: we're in between ranges
+                        // Count the range *if* it's inside
+                        let range_is_inside = segments_contain(Pos::new(x, unseen_y), &pool.inside);
+                        if range_is_inside {
+                            surface += range_len(unseen_y, y_start - 1);
+                        }
+                        surface += range_len(y_start, y_end);
+                    }
+                }
+            }
+            unseen_y = Some(y_end + 1);
         }
     }
 
@@ -168,48 +246,26 @@ fn pool_surface(pool: &LavaPool) -> usize {
 }
 
 impl Segment {
-    // Return the y values that cross row x
+    // Return the y range that crosses row x
     // For any segment, there will be between 0 and 2 such points
-    // Note that for horizontal segments with value x, we return the left-most and right-most points only
-    fn row_intersections(&self, x_search: usize) -> Vec<usize> {
+    // For vertical segments that cross, the returned range has width 1
+    fn row_intersections(&self, x_search: usize) -> Option<(usize, usize)> {
         match self {
             Segment::Horizontal { x, y1, y2 } => {
                 if *x == x_search {
-                    /* Patch the special case
-                     *
-                     *   ***    *
-                     *
-                     * Without patch, we get an odd number of ys, which is normally not possible
-                     */
-                    let range_len = y2 - y1 + 1;
-                    if range_len % 2 == 0 {
-                        println!("{} x (x: {}, y1: {}, y2: {}) = [{}, {}]",
-                            x_search, x, y1, y2, y1, y2);
-                        vec![*y1, *y2]
-                    }
-                    else {
-                        println!("{} x (x: {}, y1: {}, y2: {}) = [{}, {}, {}]",
-                            x_search, x, y1, y2, y1, y2-1, y2);
-                        vec![*y1, y2-1, *y2]
-                    }
+                    Some((*y1, *y2))
                 }
                 else {
-                    println!("{} x (x: {}, y1: {}, y2: {}) = []",
-                        x_search, x, y1, y2);
-                    Vec::new()
+                    None
                 }
             }
 
             Segment::Vertical { x1, x2, y } => {
                 if x_search >= *x1 && x_search <= *x2 {
-                    println!("{} x (x1: {}, x2: {}, y: {}) = [{}]",
-                        x_search, x1, x2, y, y);
-                    vec![*y]
+                    Some((*y, *y))
                 }
                 else {
-                    println!("{} x (x1: {}, x2: {}, y: {}) = []",
-                        x_search, x1, x2, y);
-                    Vec::new()
+                    None
                 }
             }
         }
@@ -219,6 +275,40 @@ impl Segment {
         match self {
             Segment::Horizontal { x, .. } => vec![*x],
             Segment::Vertical { x1, x2, .. } => vec![*x1, *x2],
+        }
+    }
+
+    fn contains(&self, pos: Pos) -> bool {
+        match self {
+            Segment::Horizontal { x, y1, y2 } => pos.x == *x && (pos.y >= *y1 && pos.y <= *y2),
+            Segment::Vertical   { x1, x2, y } => pos.y == *y && (pos.x >= *x1 && pos.x <= *x2),
+        }
+    }
+
+    fn edges(&self) -> [Pos; 2] {
+        match self {
+            Segment::Horizontal { x, y1, y2 } => [Pos::new(*x, *y1), Pos::new(*x, *y2)],
+            Segment::Vertical   { x1, x2, y } => [Pos::new(*x1, *y), Pos::new(*x2, *y)],
+        }
+    }
+
+    fn translate(&self, dir: Direction) -> Self {
+        let (x_diff, y_diff) = dir.as_vector();
+        match self {
+            Segment::Horizontal { x, y1, y2 } => {
+                Segment::Horizontal {
+                    x:  x.checked_add_signed(x_diff).unwrap(),
+                    y1: y1.checked_add_signed(y_diff).unwrap(),
+                    y2: y2.checked_add_signed(y_diff).unwrap(),
+                }
+            }
+            Segment::Vertical   { x1, x2, y } => {
+                Segment::Vertical {
+                    x1: x1.checked_add_signed(x_diff).unwrap(),
+                    x2: x2.checked_add_signed(x_diff).unwrap(),
+                    y:  y.checked_add_signed(y_diff).unwrap(),
+                }
+            }
         }
     }
 }

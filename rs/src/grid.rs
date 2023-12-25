@@ -74,6 +74,7 @@ impl<T> Grid<T> {
             .and_then(|row| row.get_mut(pos.y))
     }
 
+    #[allow(dead_code)]
     pub fn set_pos(&mut self, pos: Pos, value: T) {
         let target = self.get_pos_mut(pos).unwrap();
         *target = value;
@@ -120,6 +121,7 @@ impl<T> Grid<T> {
             })
     }
 
+    #[allow(dead_code)]
     pub fn iter(&self) -> impl Iterator<Item=&T> {
         self.tiles
             .iter()
@@ -138,6 +140,7 @@ impl<T> Grid<T> {
         Pos::from_row_col(self.row_count() - 1, self.col_count() - 1)
     }
 
+    #[allow(dead_code)]
     pub fn on_the_border(&self, pos: Pos) -> bool {
         (pos.x == 0 || pos.x == self.height() - 1)
         && (pos.y == 0 || pos.y == self.width() - 1)
@@ -158,6 +161,7 @@ impl<T> std::ops::Index<Pos> for Grid<T> {
 }
 
 impl<T: Clone> Grid<T> {
+    #[allow(dead_code)]
     pub fn init(height: usize, width: usize, repeated_elem: T) -> Self {
         let repeated_row = vec![repeated_elem; width];
         let all_data = vec![repeated_row; height];
@@ -223,7 +227,7 @@ pub enum Direction {
 }
 
 impl Direction {
-    fn as_vector(&self) -> (isize, isize) {
+    pub fn as_vector(&self) -> (isize, isize) {
         use Direction::*;
         match self {
             Left  => (0, -1),
@@ -295,6 +299,14 @@ impl Direction {
             Left  => Up,
         }
     }
+
+    pub fn rotate_left(&self) -> Self {
+        self.turn_left()
+    }
+
+    pub fn rotate_right(&self) -> Self {
+        self.turn_right()
+    }
 }
 
 /***** Plane *****/
@@ -303,6 +315,7 @@ impl Direction {
 pub struct Plane<T> (pub HashMap<Pos, T>);
 
 impl<T> Plane<T> {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Plane(HashMap::new())
     }
@@ -316,6 +329,7 @@ impl<T> Plane<T> {
 }
 
 impl<T: Clone> Plane<T> {
+    #[allow(dead_code)]
     pub fn into_grid(self, default_elem: T) -> Option<Grid<T>> {
         let all_pos = || self.0.keys();
         let all_xs = || all_pos().map(|p| p.x);
