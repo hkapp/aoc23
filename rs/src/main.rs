@@ -3,6 +3,7 @@ mod day15;
 mod day16;
 mod day17;
 mod day18;
+mod day19;
 mod grid;
 
 use std::io::{self, BufRead};
@@ -22,6 +23,7 @@ fn main() {
         16 => day16::run(),
         17 => day17::run(),
         18 => day18::run(),
+        19 => day19::run(),
         _  => panic!("Unrecognized day argument '{}'", day)
     }
 }
