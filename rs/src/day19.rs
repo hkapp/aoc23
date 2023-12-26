@@ -9,41 +9,51 @@ pub fn run () {
     println!("{}", answer1);
     assert_eq!(answer1, 495298);
 
-    //let answer2 = part2(instructions());
-    //println!("{}", answer2);
-    //assert_eq!(answer2, 134549294799713);
+    let answer2 = part2(&workflow);
+    println!("{}", answer2);
+    assert_eq!(answer2, 132186256794011);
 }
 
 fn part1(workflow: &Workflow, parts: &[Xmas]) -> Value {
     let starting_rule = &workflow["in"];
 
     parts.iter()
-        .filter(|xmas| starting_rule.eval_rule(**xmas, workflow))
+        .filter(|xmas| starting_rule.eval_rule(xmas, workflow))
         .map(|xmas| xmas.tot_rating())
         .sum()
 }
 
-#[derive(Copy, Clone)]
+fn part2(workflow: &Workflow) -> usize {
+    let starting_rule = &workflow["in"];
+    let starting_range = XmasRange::new();
+
+    starting_rule.count_combinations(starting_range, workflow)
+}
+
+#[derive(Clone)]
 struct Xmas ([Value; 4]);
 
 impl Xmas {
-    fn x(&self) -> Value { self.0[0] }
-    fn m(&self) -> Value { self.0[1] }
-    fn a(&self) -> Value { self.0[2] }
-    fn s(&self) -> Value { self.0[3] }
+    const X_IDX: usize = 0;
+    const M_IDX: usize = 1;
+    const A_IDX: usize = 2;
+    const S_IDX: usize = 3;
 
     fn tot_rating(&self) -> Value {
         self.0.iter().sum()
     }
+
+    fn all(x: Value) -> Self {
+        Xmas([x; 4])
+    }
 }
 
 type Value = u32;
-type Field = fn(&Xmas) -> Value;
 
 struct Condition {
-    field: Field,
-    ord:   Ordering,
-    value: Value,
+    field_idx: usize,
+    ord:       Ordering,
+    value:     Value,
 }
 
 enum Outcome {
@@ -62,7 +72,7 @@ struct Rule {
 type Workflow = HashMap<Label, Rule>;
 
 impl Rule {
-    fn eval_rule(&self, xmas: Xmas, workflow: &Workflow) -> bool {
+    fn eval_rule(&self, xmas: &Xmas, workflow: &Workflow) -> bool {
         self.cond_branches
             .iter()
             .find(|(c, _)| c.eval_cond(xmas) == true)
@@ -70,19 +80,67 @@ impl Rule {
             .unwrap_or(&self.default_branch)
             .eval_outcome(xmas, workflow)
     }
+
+    fn count_combinations(&self, range: XmasRange, workflow: &Workflow) -> usize {
+        let (rem_range, cond_count) =
+            self.cond_branches
+                .iter()
+                .fold(
+                    (range, 0),
+                    |(range_left, count_so_far), (cond, outcome)| {
+                        let (range_yes, range_continue) = cond.split_range_on_cond(range_left);
+                        let o_count = outcome.range_eval(range_yes, workflow);
+                        (range_continue, o_count + count_so_far)
+                    });
+
+        let default_count = self.default_branch.range_eval(rem_range, workflow);
+
+        cond_count + default_count
+    }
 }
 
 impl Condition {
-    fn eval_cond(&self, xmas: Xmas) -> bool {
-        (self.field)(&xmas).cmp(&self.value) == self.ord
+    fn eval_cond(&self, xmas: &Xmas) -> bool {
+        xmas.0[self.field_idx].cmp(&self.value) == self.ord
+    }
+
+    fn split_range_on_cond(&self, range: XmasRange) -> (XmasRange, XmasRange) {
+        match self.ord {
+            /* *** * *****
+             * ^^^ x xxxxx
+             * yes      no
+             */
+            Ordering::Less => range.split_eq_right(self.field_idx, self.value),
+            /* *** * *****
+             * xxx x ^^^^^
+             * no      yes
+             */
+            Ordering::Greater => swap(range.split_eq_left(self.field_idx, self.value)),
+
+            _ => unreachable!(),
+        }
+    }
+}
+
+fn swap<T, U>(pair: (T, U)) -> (U, T) {
+    match pair {
+        (x, y) => (y, x)
     }
 }
 
 impl Outcome {
-    fn eval_outcome(&self, xmas: Xmas, workflow: &Workflow) -> bool {
+    fn eval_outcome(&self, xmas: &Xmas, workflow: &Workflow) -> bool {
         match self {
             Return(res) => *res,
             Jump(label) => workflow[label].eval_rule(xmas, workflow),
+        }
+    }
+
+    fn range_eval(&self, range: XmasRange, workflow: &Workflow) -> usize {
+        match self {
+            Return(true)  => range.combinations(),
+            Return(false) => 0,
+            Jump(label)   => workflow[label].count_combinations(range, workflow),
         }
     }
 }
@@ -144,12 +202,12 @@ fn parse_cond(s: &str) -> Condition {
     let cmp_str = &s[1..2];
     let val_str = &s[2..];
 
-    let field =
+    let field_idx =
         match field_str {
-            "x" => Xmas::x,
-            "m" => Xmas::m,
-            "a" => Xmas::a,
-            "s" => Xmas::s,
+            "x" => Xmas::X_IDX,
+            "m" => Xmas::M_IDX,
+            "a" => Xmas::A_IDX,
+            "s" => Xmas::S_IDX,
             _   => panic!("Unrecognized field {:?}", field_str),
         };
 
@@ -163,7 +221,7 @@ fn parse_cond(s: &str) -> Condition {
     let value = val_str.parse().unwrap();
 
     Condition {
-        field,
+        field_idx,
         ord,
         value
     }
@@ -195,6 +253,63 @@ fn parse_xmas(s: &str) -> Xmas {
     Xmas ( fields.try_into().unwrap() )
 }
 
+// Both sides of the range are inclusive
+#[derive(Clone)]
+struct XmasRange {
+    low:  Xmas,
+    high: Xmas
+}
+
+impl XmasRange {
+    fn new() -> Self {
+        XmasRange {
+            low:  Xmas::all(1),
+            high: Xmas::all(4000),
+        }
+    }
+
+    fn combinations(&self) -> usize {
+        self.low.0
+            .iter()
+            .zip(self.high.0.iter())
+            .map(|(a, b)| {
+                b.checked_sub(*a)
+                    .map(|c| c + 1)
+                    .unwrap_or(0)
+                    as usize
+            })
+            .product()
+    }
+
+    fn split_eq_left(self, field_idx: usize, value: Value) -> (XmasRange, XmasRange) {
+        let mut split_low  = self.clone();
+        let mut split_high = self;
+
+        /* [***] [******]
+         * low ^     high
+         */
+        assert!(value >= split_low.low.0[field_idx] && value <= split_low.high.0[field_idx]);
+        split_low.high.0[field_idx] = value;
+        split_high.low.0[field_idx] = value + 1;
+
+        (split_low, split_high)
+    }
+
+    fn split_eq_right(self, field_idx: usize, value: Value) -> (XmasRange, XmasRange) {
+        let mut split_low  = self.clone();
+        let mut split_high = self;
+
+        /* [***] [******]
+         * low   ^   high
+         */
+        assert!(value >= split_low.low.0[field_idx] && value <= split_low.high.0[field_idx]);
+        split_low.high.0[field_idx] = value - 1;
+        split_high.low.0[field_idx] = value;
+
+        (split_low, split_high)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -209,8 +324,9 @@ mod test {
         assert_eq!(super::part1(&workflow, &presents), 19114);
     }
 
-    //#[test]
-    //fn part2() {
-        //assert_eq!(super::part2(test_data()), 952408144115);
-    //}
+    #[test]
+    fn part2() {
+        let (workflow, _) = test_data();
+        assert_eq!(super::part2(&workflow), 167409079868000);
+    }
 }
