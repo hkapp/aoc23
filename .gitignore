@@ -19,3 +19,5 @@ Cargo.lock
 *.o
 hs/Day[0-9]
 hs/Day[0-9][0-9]
+
+*.png

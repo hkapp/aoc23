@@ -1,0 +1,14 @@
+digraph {
+  rankdir=BT
+  broadcaster [shape=invhouse]
+  broadcaster -> a
+  a [shape=parallelogram]
+  a -> inv, con
+  inv [shape=house]
+  inv -> b
+  b [shape=parallelogram]
+  b -> con
+  con [shape=house]
+  con -> rx
+  rx [shape=rectangle]
+}

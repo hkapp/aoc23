@@ -352,8 +352,6 @@ fn parse_dir_hex(c: char) -> Direction {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-
     fn test_data() -> impl Iterator<Item=String> {
         super::super::test_data(18)
     }
