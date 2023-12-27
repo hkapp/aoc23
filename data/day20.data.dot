@@ -1,0 +1,120 @@
+digraph {
+rankdir=BT
+broadcaster [shape=invhouse]
+rx [shape=Msquare]
+cf -> hl, qt
+bn -> rx
+nb -> vt
+hm -> jp
+vr -> qt, sl
+gq -> hm, nl
+sl -> jx, qt
+pl -> bn
+hf -> vt, ch
+kx -> dq
+fr -> qf
+rh -> vr
+vt -> lz, dh, kr, kq, lm, qk
+dq -> mz, ml, xd, fb, xs, rc, rt
+hn -> qk, vt
+bv -> nl
+jv -> rh, qt
+kq -> lm
+nd -> hp
+gj -> bv, nl
+lv -> xs, dq
+ch -> vt, kd
+sm -> qt, nd
+nt -> jv
+qk -> cb
+jx -> cf
+hl -> qt, ng
+qt -> sm, rh, nd, jx, nt, pl
+bh -> nl, fr
+kd -> vt, nb
+gx -> mh, dq
+hp -> nt, qt
+rc -> lv
+broadcaster -> kr, zb, sm, xd
+mz -> bn
+qf -> rd, nl
+sk -> nl, bh
+rb -> nl, sk
+cb -> hf, vt
+fb -> rt
+lz -> bn
+mh -> dq, kx
+rt -> mt
+xd -> dq, fb
+lm -> hn
+hh -> vt, dh
+ml -> ts
+mt -> rc, dq
+ts -> gx, dq
+rd -> nl, gq
+zb -> nl, rb
+kr -> hh, vt
+nl -> fr, zb, hm, zm
+zm -> bn
+dh -> kq
+ng -> qt
+xs -> ml
+jp -> nl, gj
+cf [shape=parallelogram]
+nb [shape=parallelogram]
+hm [shape=parallelogram]
+vr [shape=parallelogram]
+gq [shape=parallelogram]
+sl [shape=parallelogram]
+hf [shape=parallelogram]
+kx [shape=parallelogram]
+fr [shape=parallelogram]
+rh [shape=parallelogram]
+hn [shape=parallelogram]
+bv [shape=parallelogram]
+jv [shape=parallelogram]
+kq [shape=parallelogram]
+nd [shape=parallelogram]
+gj [shape=parallelogram]
+lv [shape=parallelogram]
+ch [shape=parallelogram]
+sm [shape=parallelogram]
+nt [shape=parallelogram]
+qk [shape=parallelogram]
+jx [shape=parallelogram]
+hl [shape=parallelogram]
+bh [shape=parallelogram]
+kd [shape=parallelogram]
+gx [shape=parallelogram]
+hp [shape=parallelogram]
+rc [shape=parallelogram]
+qf [shape=parallelogram]
+sk [shape=parallelogram]
+rb [shape=parallelogram]
+cb [shape=parallelogram]
+fb [shape=parallelogram]
+mh [shape=parallelogram]
+rt [shape=parallelogram]
+xd [shape=parallelogram]
+lm [shape=parallelogram]
+hh [shape=parallelogram]
+ml [shape=parallelogram]
+mt [shape=parallelogram]
+ts [shape=parallelogram]
+rd [shape=parallelogram]
+zb [shape=parallelogram]
+kr [shape=parallelogram]
+dh [shape=parallelogram]
+ng [shape=parallelogram]
+xs [shape=parallelogram]
+jp [shape=parallelogram]
+bn [shape=house]
+pl [shape=house]
+vt [shape=house]
+dq [shape=house]
+qt [shape=house]
+mz [shape=house]
+lz [shape=house]
+nl [shape=house]
+zm [shape=house]
+}
