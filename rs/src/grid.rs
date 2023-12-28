@@ -227,6 +227,18 @@ impl Pos {
     pub fn col_idx(&self) -> usize {
         self.y
     }
+
+    pub fn vector_add(&self, other: Pos) -> Pos {
+        Pos {
+            x: self.x + other.x,
+            y: self.y + other.y,
+        }
+    }
+
+    pub fn neighbors(&self) -> impl Iterator<Item=Pos> + '_ {
+        IntoIterator::into_iter(Direction::all())
+            .flat_map(move |d| self.mov(d))
+    }
 }
 
 /***** Direction *****/
@@ -329,7 +341,9 @@ impl<T> Plane<T> {
     pub fn new() -> Self {
         Plane(HashMap::new())
     }
+}
 
+impl Plane<()> {
     pub fn origin() -> Pos {
         // Note: Pos coordinates are usize, not isize
         // Use the middle of the usize range as origin
