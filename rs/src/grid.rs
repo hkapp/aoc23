@@ -152,6 +152,16 @@ pub trait CharTile {
     fn to_char(&self) -> char;
 }
 
+impl CharTile for char {
+    fn from_char(c: &char) -> Self {
+        *c
+    }
+
+    fn to_char(&self) -> char {
+        *self
+    }
+}
+
 impl<T> std::ops::Index<Pos> for Grid<T> {
     type Output = T;
 
