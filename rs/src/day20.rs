@@ -1,4 +1,6 @@
 use std::collections::{HashMap, HashSet};
+use num::integer::lcm;
+use std::collections::VecDeque;
 
 pub fn run () {
     let mut system = parse(super::real_data(20));
@@ -12,7 +14,7 @@ pub fn run () {
     reset(&mut system);
     let answer2 = part2(&mut system);
     println!("{}", answer2);
-    //assert_eq!(answer2, 132186256794011);
+    assert_eq!(answer2, 225514321828633);
 }
 
 fn part1(system: &mut System) -> usize {
@@ -35,17 +37,48 @@ fn part1(system: &mut System) -> usize {
     high_pulse_count * low_pulse_count
 }
 
-fn part2(system: &mut System) -> usize {
-    let mut button_count = 0;
+fn part2(system: &mut System) -> u64 {
+    let (last_conjunction_name, last_conjunction_module) =
+            system.iter()
+                .find(|(_, module)| module.destinations.iter().any(|l| l == "rx"))
+                .unwrap();
 
-    loop {
+    let last_conjunction_name: Label = last_conjunction_name.into();
+    println!("last = {}", last_conjunction_name);
+
+    let mut rem_inputs = last_conjunction_module.mkind
+                            .conjunction_inputs()
+                            .unwrap()
+                            .keys()
+                            .cloned()
+                            .collect::<HashSet<_>>();
+    println!("starting inputs: {:?}", rem_inputs);
+
+    let mut button_count = 0;
+    let mut result = 1;
+
+    while !rem_inputs.is_empty() {
         button_count += 1;
-        if Propagation::new(system)
-                .any(|(_, pulse, dst)| pulse == Pulse::Low && dst == "rx")
+        for (src, _, _) in Propagation::new(system)
+                            .filter(|(_, pulse, dst)| {
+                                *pulse == Pulse::High
+                                && dst == &last_conjunction_name
+                            })
         {
-            return button_count;
+            if rem_inputs.remove(&src) == true {
+                println!("Found {} @ {}", src, button_count);
+                result = lcm(result, button_count);
+                //result *= button_count;  // also wrong
+                println!("Result = {}", result);
+            }
+            else {
+                println!("Skip {} @ {} ; should have common factors with {}",
+                            src, button_count, result);
+            }
         }
     }
+
+    return result;
 }
 
 type System = HashMap<Label, Module>;
@@ -232,20 +265,27 @@ impl MKind {
             Broadcast => {}
         }
     }
+
+    fn conjunction_inputs(&self) -> Option<&HashMap<Label, Pulse>> {
+        match self {
+            Conjunction { memory } => Some(memory),
+            _ => None,
+        }
+    }
 }
 
 type Signal = (Label, Pulse, Label);
 
 struct Propagation<'a> {
     system:       &'a mut System,
-    signal_queue: Vec<Signal>,
+    signal_queue: VecDeque<Signal>,
 }
 
 impl<'a> Propagation<'a> {
     fn new(system: &'a mut System) -> Self {
-        let mut signal_queue = Vec::new();
+        let mut signal_queue = VecDeque::new();
         let init_signal = ("button".into(), Pulse::Low, "broadcaster".into());
-        signal_queue.push(init_signal);
+        signal_queue.push_back(init_signal);
 
         Propagation {
             system,
@@ -258,7 +298,7 @@ impl<'a> Iterator for Propagation<'a> {
     type Item = Signal;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.signal_queue.pop() {
+        match self.signal_queue.pop_front() {
             None => None,
             Some((src_label, pulse, dst_label)) => {
                 let dst_module = self.system.get_mut(&dst_label).unwrap();
@@ -266,7 +306,7 @@ impl<'a> Iterator for Propagation<'a> {
 
                 if let Some(next_pulse) = next_signal {
                     for next_dest in dst_module.destinations.iter() {
-                        self.signal_queue.push((dst_label.clone(), next_pulse, next_dest.into()));
+                        self.signal_queue.push_back((dst_label.clone(), next_pulse, next_dest.into()));
                     }
                 }
 
